@@ -53,18 +53,34 @@ function LoadApp() {
 
     const conver2jsFile = async () => {
         cleanLog();
-        addLog(`record count: ${recordIds.length}`);
+        // addLog(`record count: ${recordIds.length}`);
 
         const table = await bitable.base.getActiveTable();
+
         const response = await table.getRecords({ pageSize: 300 });
         addLog(`response total : ${response.total}`);
-        response.records.map((r, i) => {
-            const f = r.fields;
-            addLog(`[${i}], ${JSON.stringify(f)}`);
+        response.records.map(async (r, i) => {
+            const fields = r.fields;
+            // addLog(JSON.stringify(f));
+            // 获取字段值
+            fields.map(async (fid: string) => {
+                const v = await getCellValue(table, fid, r.recordId);
+                addLog(`[${i}], ${v}`);  
+            })
         })
     }
 
+    /**
+     * 获取单元格值
+     * @param fieldId
+     * @param recordId
+     */
+    const getCellValue = async (table: ITable, fieldId: string, recordId: string) => {
+        return await table.getCellValue(fieldId, recordId);
+    }
+
     const export2jsFile = () => {
+        cleanLog();
         addLog('------开始导出');
         
         addLog('------导出完成');
