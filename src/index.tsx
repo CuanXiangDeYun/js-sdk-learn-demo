@@ -7,7 +7,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
-import { bitable, FieldType, ICurrencyFieldMeta, IFieldMeta, IViewMeta } from '@lark-base-open/js-sdk';
+import { bitable, FieldType, ICurrencyFieldMeta, IFieldMeta, ITable, IViewMeta } from '@lark-base-open/js-sdk';
 import { Button } from 'antd';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
@@ -17,26 +17,32 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
 )
 
 function LoadApp() {
+
     const [fieldList, setFieldList] = useState<IFieldMeta[]>([])
     const [curView, setCurView] = useState<IViewMeta>();
-    const [selectFieldId, setSelectFieldId] = useState<string>();
+    const [recordIds, setRecordIds] = useState<string[]>([]);
     const [logs, setLogs] = useState<string[]>([]);
+    const [logString, setLogString] = useState<string>('');
 
     useEffect(() => {
         const fn = async () => {
             const table = await bitable.base.getActiveTable();
             const tableName = await table.getName();
-            addLog(tableName);
+            // addLog(tableName);
 
             const viewList = await table.getViewMetaList();
             // addLog(viewList.map(v => v.name).join(','));
             const view = viewList[0];
-            addLog(`view name: ${view.name}, id: ${view.id}`);
             setCurView(view);
+            // addLog(`view name: ${view.name}, id: ${view.id}`);
 
             const fieldMetaList = await table.getFieldMetaList();
             setFieldList(fieldMetaList);
             addLog(fieldMetaList.map(meta => meta.name).join(','));
+
+            const ids = await table.getRecordIdList();
+            setRecordIds(ids);
+            addLog(`record count: ${ids.length}`);
         };
         fn();
     }, []);
@@ -46,19 +52,19 @@ function LoadApp() {
     };
 
     const conver2jsFile = async () => {
-        const table = await bitable.base.getActiveTable();
-        const tableName = await table.getName();
-        setLogs([]);
-        addLog(tableName);
-        const fieldMetaList = await table.getFieldMetaListByType<ICurrencyFieldMeta>(FieldType.Currency);
-        // console.log('fieldMetaList', fieldMetaList);
+        cleanLog();
+        addLog(`record count: ${recordIds.length}`);
 
-        const ids = await table.getRecordIdList();
-        addLog(ids.join(','));
-        setCurView(curView);
+        const table = await bitable.base.getActiveTable();
+        const response = await table.getRecords({ pageSize: 300 });
+        addLog(`response total : ${response.total}`);
+        response.records.map((r, i) => {
+            const f = r.fields;
+            addLog(`[${i}], ${JSON.stringify(f)}`);
+        })
     }
 
-    const export2jsFile = async () => {
+    const export2jsFile = () => {
         addLog('------开始导出');
         
         addLog('------导出完成');
@@ -67,25 +73,27 @@ function LoadApp() {
     const addLog = (log: string) => {
         let message = new Date().toLocaleString() + ': ' + log;
         logs.push(message);
-        setLogs(logs);
+        setLogString(logs.join('\n'));
     }
 
-    const getLogMessage = () => {
-        // return JSON.stringify(logs);
-        return logs.join(' ');
+    const cleanLog = () => {
+        setLogs([]);
+        setLogString('');
     }
 
-    return <div>
-        <div style={{ margin: 10 }}>
-            <div>{`将多维表格的内容导出为 React-Native js 文件`}</div>
-            <div>{`当前字符串表格：${curView?.name}, ${curView?.id}`}</div>
+    return (
+        <div>
+            <div style={{ margin: 10 }}>
+                <div>{`将多维表格的内容导出为 React-Native js 文件`}</div>
+                <div>{`当前字符串表格：${curView?.name}, ${curView?.id}`}</div>
+            </div>
+            <div style={{ margin: 10 }}>
+                <Button style={{ marginLeft: 10 }} onClick={conver2jsFile}>转化</Button>
+                <Button style={{ marginLeft: 10 }} onClick={export2jsFile}>导出</Button>
+            </div>
+            <div style={{ margin: 10 }}>
+                <div style={{ fontSize: 16 }}>{logString}</div>
+            </div>
         </div>
-        <div style={{ margin: 10 }}>
-            <Button style={{ marginLeft: 10 }} onClick={conver2jsFile}>转化</Button>
-            <Button style={{ marginLeft: 10 }} onClick={export2jsFile}>导出</Button>
-        </div>
-        <div style={{ margin: 10 }}>
-            <div style={{ fontSize: 16 }}>{getLogMessage()}</div>
-        </div>
-    </div>
+    )
 }
