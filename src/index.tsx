@@ -2,7 +2,7 @@
  * @Author wanghaobing
  * @Date 2024-04-08
  * @FilePath /js-sdk-learn-demo/src/index.tsx
- * @Description 
+ * @Description https://lark-base-team.github.io/js-sdk-docs/zh/start/core
  * Copyright (c) 2024 by YUNMAI, All Rights Reserved.
  */
 import React, { useEffect, useState } from 'react';
