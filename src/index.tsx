@@ -1,63 +1,91 @@
-import React, { useEffect, useState } from 'react'
-import ReactDOM from 'react-dom/client'
-import { bitable, CurrencyCode, FieldType, ICurrencyField, ICurrencyFieldMeta } from '@lark-base-open/js-sdk';
-import { Alert, AlertProps, Button, Select } from 'antd';
-import { CURRENCY } from './const';
-import { getExchangeRate } from './exchange-api';
+/*
+ * @Author wanghaobing
+ * @Date 2024-04-08
+ * @FilePath /js-sdk-learn-demo/src/index.tsx
+ * @Description 
+ * Copyright (c) 2024 by YUNMAI, All Rights Reserved.
+ */
+import React, { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom/client';
+import { bitable, FieldType, ICurrencyFieldMeta, IFieldMeta, IViewMeta } from '@lark-base-open/js-sdk';
+import { Button } from 'antd';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <React.StrictMode>
-    <LoadApp/>
-  </React.StrictMode>
+    <React.StrictMode>
+        <LoadApp />
+    </React.StrictMode>
 )
 
 function LoadApp() {
-  const [info, setInfo] = useState('get table name, please waiting ....');
-  const [alertType, setAlertType] = useState<AlertProps['type']>('info');
-  const [currencyFieldMetaList, setMetaList] = useState<ICurrencyFieldMeta[]>([])
-  const [selectFieldId, setSelectFieldId] = useState<string>();
-  const [currency, setCurrency] = useState<CurrencyCode>();
+    const [fieldList, setFieldList] = useState<IFieldMeta[]>([])
+    const [curView, setCurView] = useState<IViewMeta>();
+    const [selectFieldId, setSelectFieldId] = useState<string>();
+    const [logs, setLogs] = useState<string[]>([]);
 
-  useEffect(() => {
-    const fn = async () => {
-      const table = await bitable.base.getActiveTable();
-      const tableName = await table.getName();
-      setInfo(`The table Name is ${tableName}`);
-      setAlertType('success');
-      const fieldMetaList = await table.getFieldMetaListByType<ICurrencyFieldMeta>(FieldType.Currency);
-      setMetaList(fieldMetaList);
+    useEffect(() => {
+        const fn = async () => {
+            const table = await bitable.base.getActiveTable();
+            const tableName = await table.getName();
+            addLog(tableName);
+
+            const viewList = await table.getViewMetaList();
+            // addLog(viewList.map(v => v.name).join(','));
+            const view = viewList[0];
+            addLog(`view name: ${view.name}, id: ${view.id}`);
+            setCurView(view);
+
+            const fieldMetaList = await table.getFieldMetaList();
+            setFieldList(fieldMetaList);
+            addLog(fieldMetaList.map(meta => meta.name).join(','));
+        };
+        fn();
+    }, []);
+
+    const formatFieldMetaList = (metaList: ICurrencyFieldMeta[]) => {
+        return metaList.map(meta => ({ label: meta.name, value: meta.id }));
     };
-    fn();
-  }, []);
 
-  const formatFieldMetaList = (metaList: ICurrencyFieldMeta[]) => {
-    return metaList.map(meta => ({ label: meta.name, value: meta.id }));
-  };
+    const conver2jsFile = async () => {
+        const table = await bitable.base.getActiveTable();
+        const tableName = await table.getName();
+        setLogs([]);
+        addLog(tableName);
+        const fieldMetaList = await table.getFieldMetaListByType<ICurrencyFieldMeta>(FieldType.Currency);
+        // console.log('fieldMetaList', fieldMetaList);
 
-  const transform = async () => {
-    if (!selectFieldId || !currency) return;
-    const table = await bitable.base.getActiveTable();
-    const currencyField = await table.getField<ICurrencyField>(selectFieldId);
-    const currentCurrency = await currencyField.getCurrencyCode();
-    await currencyField.setCurrencyCode(currency);
-    const ratio = await getExchangeRate(currentCurrency, currency);
-    if (!ratio) return;
-    const recordIdList = await table.getRecordIdList();
-    for (const recordId of recordIdList) {
-      const currentVal = await currencyField.getValue(recordId);
-      await currencyField.setValue(recordId, currentVal * ratio);
+        const ids = await table.getRecordIdList();
+        addLog(ids.join(','));
+        setCurView(curView);
     }
-  }
 
-  return <div>
-    <div style={{ margin: 10 }}>
-      <div>Select Field</div>
-      <Select style={{ width: 120 }} onSelect={setSelectFieldId} options={formatFieldMetaList(currencyFieldMetaList)}/>
+    const export2jsFile = async () => {
+        addLog('------开始导出');
+        
+        addLog('------导出完成');
+    }
+
+    const addLog = (log: string) => {
+        let message = new Date().toLocaleString() + ': ' + log;
+        logs.push(message);
+        setLogs(logs);
+    }
+
+    const getLogMessage = () => {
+        // return JSON.stringify(logs);
+        return logs.join(' ');
+    }
+
+    return <div>
+        <div style={{ margin: 10 }}>
+            <div>{`将多维表格的内容导出为 React-Native js 文件`}</div>
+            <div>{`当前字符串表格：${curView?.name}, ${curView?.id}`}</div>
+        </div>
+        <div style={{ margin: 10 }}>
+            <Button style={{ marginLeft: 10 }} onClick={conver2jsFile}>转化</Button>
+            <Button style={{ marginLeft: 10 }} onClick={export2jsFile}>导出</Button>
+        </div>
+        <div style={{ margin: 10 }}>
+            <div style={{ fontSize: 16 }}>{getLogMessage()}</div>
+        </div>
     </div>
-    <div style={{ margin: 10 }}>
-      <div>Select Currency</div>
-      <Select options={CURRENCY} style={{ width: 120 }} onSelect={setCurrency}/>
-      <Button style={{ marginLeft: 10 }} onClick={transform}>transform</Button>
-    </div>
-  </div>
 }
