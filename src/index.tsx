@@ -9,6 +9,7 @@ import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { bitable, FieldType, ICurrencyFieldMeta, IFieldMeta, ITable, IViewMeta } from '@lark-base-open/js-sdk';
 import { Button } from 'antd';
+import TableComponent from './table';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <React.StrictMode>
@@ -23,6 +24,7 @@ function LoadApp() {
     const [recordIds, setRecordIds] = useState<string[]>([]);
     const [logs, setLogs] = useState<string[]>([]);
     const [logString, setLogString] = useState<string>('');
+    const [tableData, setTableData] = useState([]);
 
     useEffect(() => {
         const fn = async () => {
@@ -38,7 +40,17 @@ function LoadApp() {
 
             const fieldMetaList = await table.getFieldMetaList();
             setFieldList(fieldMetaList);
-            addLog(fieldMetaList.map(meta => meta.name).join(','));
+
+            let list = [];
+            fieldMetaList.map(meta => {
+                let data = {
+                    name: meta.name,
+                    value: meta.id,
+                }
+                list.push(data);
+            })
+            setTableData(list);
+            // addLog(JSON.stringify(list));
 
             const ids = await table.getRecordIdList();
             setRecordIds(ids);
@@ -56,16 +68,16 @@ function LoadApp() {
         // addLog(`record count: ${recordIds.length}`);
 
         const table = await bitable.base.getActiveTable();
-
-        const response = await table.getRecords({ pageSize: 300 });
-        addLog(`response total : ${response.total}`);
-        response.records.map(async (r, i) => {
-            const fields = r.fields;
-            // addLog(JSON.stringify(f));
-            // 获取字段值
-            fields.map(async (fid: string) => {
-                const v = await getCellValue(table, fid, r.recordId);
-                addLog(`[${i}], ${v}`);  
+        tableData.map(async (filed) => {
+            if (filed.name == 'SourceID') {
+                return;
+            }
+            addLog(JSON.stringify(filed));
+            const response = await table.getRecords({ pageSize: 300 });
+            addLog(`response total : ${response.total}`);
+            response.records.map(async (r, i) => {
+                const v = await getCellValue(table, filed.value, r.recordId);
+                addLog(`[${i}], ${JSON.stringify(v[0].text)}`);
             })
         })
     }
@@ -103,6 +115,7 @@ function LoadApp() {
                 <div>{`将多维表格的内容导出为 React-Native js 文件`}</div>
                 <div>{`当前字符串表格：${curView?.name}, ${curView?.id}`}</div>
             </div>
+            <TableComponent data={tableData}></TableComponent>
             <div style={{ margin: 10 }}>
                 <Button style={{ marginLeft: 10 }} onClick={conver2jsFile}>转化</Button>
                 <Button style={{ marginLeft: 10 }} onClick={export2jsFile}>导出</Button>
